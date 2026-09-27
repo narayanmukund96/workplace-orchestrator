@@ -1,27 +1,55 @@
 # V1.1 remediation — implementation record
 
-Date: 2026-09-26. This is an execution/evidence log; `source/01_PRD.md` through `source/12_FUTURE_BACKLOG.md` remain the canonical product specifications and are updated in place. The original Downloads pack is untouched. `artifacts/v1-before-remediation.zip` captures the pre-change source and documentation.
+Date: 2026-09-26 to 2026-09-27.
 
-## Audit and plan
+V1.1 was initiated after hands-on use of the first deployed build exposed several gaps between the product specification and the actual Windows experience. The remediation deliberately preserved the existing application and corrected the smallest necessary areas rather than rebuilding the product.
 
-Existing stack: C# 5 / .NET Framework 4.8 WPF, embedded runtime XAML, SQLite through Windows `winsqlite3`, PowerShell per-user install/uninstall. Discovery reads App Paths, argument-free Start Menu links and Store manifests. Monitoring combines exact-path scans, filtered WMI start events (unavailable on this machine), and `Process.Exited`. CPU/RAM/disk samples activate during sequencing. These components remain.
+## Issues addressed
 
-| Priority / issue | Actual root cause | Incremental approach / affected files | Acceptance and coverage | Status |
-|---|---|---|---|---|
-| P0 installation | Deliverable includes developer/test sources, no easy setup entry, no embedded product icon; no installed registration exists on this machine | Product-only ZIP, explicit setup, metadata/icon, Start Menu/App Paths/uninstall registration; build/install/package scripts | Real per-user install, shortcut target/name/icon, Get-StartApps and Search, uninstall, package deny-list | In progress |
-| P0 window | Source relies on WPF native defaults; old preview only rendered content and excluded chrome | Make native chrome, resize/taskbar, AppUserModelID explicit; verify real window | Minimise/maximise/restore/resize/drag/Alt+F4; native style assertions and desktop checks | In progress |
-| P0 identity | Picker template lacks icons; manual browse uses filename only; shortcut metadata is discarded | Source and icon-reference fields, atomic schema migration, bounded icon cache, metadata-first discovery | v1 migration preserves rows, names and icons for desktop/Store/manual entries | In progress |
-| P0 individual Stop | Only one selected PID receives CloseMainWindow; no wait/Stopping state; no descendant tracking | Retain verified roots plus descendants with creation-time ancestry; bounded graceful close then safe owned-process termination | Controlled multiprocess app, stubborn child, pre-existing app, reused PID, external closure | In progress |
-| P0 workspace Stop | Close requests never checked for completion; ownership only root PID | Reuse the owned app-group stop pipeline; reconcile immediately | Multiple apps, shared app, pre-existing protection, cancellation during launch | In progress |
-| P0 live state | Running scan only considers same executable; removed executable checked only on selected workspace display | Include verified descendants; continuous missing-path state; guard in-flight refresh during stop | Crash/normal exit/external launch/missing executable; bounded idle polling | In progress |
-| P1 startup/tray | No settings table, startup registration, tray icon, or activation handoff | Local preferences, opt-in HKCU Run, NotifyIcon, single-instance activation; no workspace autolaunch | Startup off by default; tray open/exit; close preference; duplicate invocation | Pending P0 |
-| P1 appearance/UI | Hard-coded brushes, large dashboard spacing, technical paths dominate secondary areas | Runtime theme dictionary, System/Light/Dark, compact application-first layout | Theme persistence/system changes, light/dark renders and interactive workflows | Pending P0 |
-| Regression/performance | Previous measurements are short warm-machine samples, arbitrary pass threshold | Retain functional tests, expand native/UI/release tests, measure idle/tray/active without invented numerical gate | Logs and observed limits recorded in canonical checklist | Pending |
+| Area | Root problem | V1.1 outcome |
+|---|---|---|
+| Windows installation / discovery | Initial packaging and shell integration did not produce normal Start/Search discoverability | Production metadata, icon, registration and shortcut handling implemented; Start/Search/Get-StartApps validation passed |
+| Native window behaviour | Initial shell did not expose the expected Windows desktop lifecycle clearly enough | Native minimise/maximise/restore/resize/taskbar behaviour implemented and validated |
+| Application identity | Discovery was too executable-centric and did not consistently surface normal application identity/icons | Metadata-first discovery, icon extraction/cache and repair workflow implemented |
+| Individual Stop | Original process handling was insufficient for modern multiprocess applications | Ownership-aware process groups, graceful shutdown and controlled fallback implemented; automated coverage passed |
+| Stop Workspace | Workspace-wide stop needed stronger session ownership protection | Only safely attributable session-owned processes are stopped |
+| Startup / tray | Not present in the first deployment | Optional Start with Windows, tray Open/Exit, close-to-tray and single-instance activation implemented and validated |
+| Appearance | Initial UI lacked System/Light/Dark support | Local appearance preference and runtime theme manager implemented |
+| Performance validation | One UI-harness idle CPU sample appeared abnormally high | Installed production process was remeasured after settling; ~0.258% of one core over ~60 seconds, so no runtime optimisation was required |
 
-Work order: identity/migration → installation/native window → discovery → process tracking/stops and P0 verification → startup/tray → appearance/UI → full regression and measured release candidate. Dependencies may be implemented together, but visual polish will follow P0 functional acceptance.
+## Validation evidence
 
-No framework replacement, cloud feature, updater, content-type expansion or destructive data migration is planned. Existing workspaces must survive. Stop will no longer offer arbitrary termination of a pre-existing app instance; this is the explicit V1.1 safety requirement. Close-to-tray will default on with a visible explanatory preference; Windows startup defaults off.
+After the V1.1 changes:
 
-## Evidence
+- current source build succeeded,
+- core suite: **36 passed / 0 failed**,
+- native integration suite: **4 passed / 0 failed**,
+- Windows Start/Search catalogue validation passed,
+- startup enable/disable passed,
+- tray Open/Exit and duplicate-icon checks passed,
+- close-to-tray and exit-on-close passed,
+- preference persistence passed,
+- single-instance activation passed,
+- existing workspace database was preserved.
 
-To be filled with actual test outputs and remaining gates before release. No P0 item is marked complete without evidence.
+## Product decisions retained
+
+V1.1 did not expand the core product into a cloud service or general automation platform.
+
+Still retained:
+
+- Windows-first,
+- applications-only workspace content,
+- local persistence,
+- no account,
+- no telemetry,
+- no cloud dependency,
+- Smart / Timed / Hybrid / Immediate sequencing,
+- Hybrid as the default launch approach,
+- conservative process ownership.
+
+## Remaining work
+
+No further broad remediation pass is planned.
+
+Future engineering should be driven by reproduced issues from normal product use or a deliberate decision to prepare the application for wider distribution.
