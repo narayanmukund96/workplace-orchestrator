@@ -12,17 +12,6 @@ Windows 10/11 · .NET Framework 4.8
 
 > The current executable is unsigned, so Windows SmartScreen may show a warning during installation.
 
-## Product preview
-
-### Workspace
-![Workplace Orchestrator workspace](assets/screenshots/workspace-main.jpg)
-
-### Add installed applications
-![Add application](assets/screenshots/add-application.jpg)
-
-### Workspace settings and launch modes
-![Workspace settings](assets/screenshots/workspace-settings.jpg)
-
 ## What it does
 
 - Create and manage multiple workspaces.
