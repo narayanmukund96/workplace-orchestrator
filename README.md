@@ -4,6 +4,25 @@ A lightweight Windows desktop utility for launching groups of applications in a 
 
 The product started from a simple problem: when several heavy desktop applications launch together, they compete for CPU, memory and disk resources. Workplace Orchestrator lets you create reusable workspaces and launch those applications progressively using smart, timed, hybrid or immediate sequencing.
 
+## Download
+
+**[Download Workplace Orchestrator v1.1.0](https://github.com/narayanmukund96/workplace-orchestrator/releases/download/v1.1.0/WorkplaceOrchestrator-v1.1.0.zip)**
+
+Windows 10/11 · .NET Framework 4.8
+
+> The current executable is unsigned, so Windows SmartScreen may show a warning during installation.
+
+## Product preview
+
+### Workspace
+![Workplace Orchestrator workspace](assets/screenshots/workspace-main.jpg)
+
+### Add installed applications
+![Add application](assets/screenshots/add-application.jpg)
+
+### Workspace settings and launch modes
+![Workspace settings](assets/screenshots/workspace-settings.jpg)
+
 ## What it does
 
 - Create and manage multiple workspaces.
@@ -105,7 +124,9 @@ Generated build output, candidate packages, local databases, logs and verificati
 
 ## Installation
 
-The project includes per-user installation and uninstall scripts:
+For most users, download the latest release ZIP above, extract it, then run `Setup.cmd` or `install.ps1`.
+
+The project also includes per-user installation and uninstall scripts:
 
 ```powershell
 .\install.ps1
