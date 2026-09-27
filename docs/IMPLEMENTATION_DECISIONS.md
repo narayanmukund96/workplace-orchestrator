@@ -1,0 +1,25 @@
+# Implementation decisions — 2026-09-25
+
+The supplied product pack remains authoritative and is preserved unchanged in `source/`. These decisions fill implementation gaps without expanding V1.
+
+| ID | Decision | Reason |
+|---|---|---|
+| DEC-017 | User-facing name is Workplace Orchestrator; source pack calls it Workspace Orchestrator. | Follow the user's requested product name. |
+| DEC-018 | Native WPF, C# 5, .NET Framework 4.8, x64 Windows 10/11. | Native Windows integration, no browser runtime or downloaded build dependencies; compiler/runtime already available. |
+| DEC-019 | Use Windows `winsqlite3.dll` with parameter-bound SQL, schema v1, atomic transactions, WAL, and a three-second busy timeout. | Implements the production preference for SQLite without bundling a package. |
+| DEC-020 | Use full executable path for matching; PID plus creation time for ownership and close operations. Never infer ownership solely from process name or ancestry. | Prevents name collisions, PID reuse, and unsafe adoption of bootstrapped or pre-existing processes. |
+| DEC-021 | Keep sessions in memory and preserve ownership across repeated launches in one run. After restart, running processes are protected as pre-existing. | Conservative crash recovery without storing process history. |
+| DEC-022 | Try filtered WMI process-start notifications, attach exit events to matched processes, reconcile configured process names every five seconds. | Standard-user WMI event access varies; bounded fallback is required. No elevation requested for monitoring. |
+| DEC-023 | Sample system CPU, physical memory, and disk only while sequencing or on explicit diagnostics. Three-sample CPU/disk windows, 350–1500 ms bounded backoff. | Active readiness without persistent resource sampling. |
+| DEC-024 | Weighted pressure score: CPU 45%, memory occupancy 35%, disk 20%; high at score >= .78, CPU >= 92%, disk >= 95%, or available RAM < 10%. Critical below 4% available RAM or 200 MiB. | Internal provisional tuning; uses several inputs with protection against severe individual pressure. Requires empirical heavy-workload tuning. |
+| DEC-025 | Application delay is before that application, measured from previous launch. First app has no predecessor delay. Smart has 750 ms settling; hybrid defaults to 2 s; maximum wait defaults to 30 s. | Resolves interval placement ambiguity. Maximum wait never falls below minimum delay. |
+| DEC-026 | Continue with a warning at maximum wait, except critical memory skips the app and applies failure policy. | Continuity without forcing launch during critical memory pressure. |
+| DEC-027 | Workspace stop sends normal close requests only. Individual stop identifies a single process; force end requires an explicit checkbox and confirmation. | Gives applications a chance to save work and avoids blanket process-tree termination. |
+| DEC-028 | Discover desktop executables via registry App Paths and argument-free Start Menu shortcuts, plus Store app IDs with manifest executable paths. Manual executable picker is always available. | Supports broad local applications without introducing the deferred launch-arguments feature. Shortcuts requiring arguments are omitted rather than launched incorrectly. |
+| DEC-029 | Reject UNC/network executables, URLs, scripts and alternate data streams; allow local `.exe` only. Display executable identity before addition and in every row. | Keeps V1 within local application scope. |
+| DEC-030 | One global launch queue; edits and individual start/stop are disabled or guarded during a sequence. Cancel and safe workspace stop remain available. | Prevents two workspaces causing simultaneous startup contention. |
+| DEC-031 | Per-user optional installation and portable executable distribution, no service, autostart or updater. | Small deployment footprint; configuration preserved by default on uninstall. |
+| DEC-032 | Before Store activation, verify the saved app ID and executable against registered package paths and the installed manifest. Reject mismatches. | Prevents a changed app ID from activating a different executable than the one shown to the user. |
+| DEC-033 | After a resource-sampling gap, prime a new 200 ms off-UI-thread window before evaluating CPU/disk. | Avoids stale averages since startup while retaining zero periodic resource sampling at idle. |
+
+Implementation references: [Windows application activation](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-iapplicationactivationmanager-activateapplication), [Windows process stop trace semantics](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/krnlprov/win32-processstoptrace), [registered package lookup](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagesbypackagefamily), [package path lookup](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagepathbyfullname), [SQLite connection API](https://www.sqlite.org/c3ref/open.html). These references informed the Windows bindings; the product requirements came from the user's supplied pack.

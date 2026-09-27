@@ -1,0 +1,15 @@
+dist/
+tests/output/
+release/
+*.db
+*.db-shm
+*.db-wal
+candidate/
+artifacts/
+docs/verification/
+bin/
+obj/
+*.zip
+*.log
+*.sqlite
+*.sqlite3
