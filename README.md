@@ -1,79 +1,142 @@
 # Workplace Orchestrator
 
-A local Windows application that opens your working applications in sequence, watches their live state, and safely closes only the processes owned by the current workspace session.
+A lightweight Windows desktop utility for launching groups of applications in a controlled sequence instead of opening everything at once.
 
-## Run
+The product started from a simple problem: when several heavy desktop applications launch together, they compete for CPU, memory and disk resources. Workplace Orchestrator lets you create reusable workspaces and launch those applications progressively using smart, timed, hybrid or immediate sequencing.
 
-Open **`dist\WorkplaceOrchestrator.exe`** on 64-bit Windows 10 or 11 with .NET Framework 4.8 or newer. No SDK, package download, administrator account, or network connection is needed. Keep `WorkplaceOrchestrator.exe.config` beside the executable.
+## What it does
 
-The distributable `release\WorkplaceOrchestrator-1.0.0.zip` includes the executable, source, setup scripts, documentation and test sources. Extract it before running. Rebuild the archive with `.\package.ps1`.
+- Create and manage multiple workspaces.
+- Add installed desktop and Microsoft Store applications.
+- Launch applications in a defined order.
+- Use **Smart**, **Timed**, **Hybrid** or **Immediate** launch modes.
+- Monitor CPU, available memory and disk pressure during sequencing.
+- Detect applications that are already running.
+- Track live application state when apps are opened or closed outside Workplace.
+- Stop individual applications or a whole workspace with ownership safeguards.
+- Run optionally at Windows startup and stay available in the system tray.
+- Use **System**, **Light** or **Dark** appearance modes.
+- Store configuration locally with no account, cloud dependency or telemetry.
 
-1. Choose **New workspace** and give it a name.
-2. Choose **Add application**. Search discovered desktop/Store applications, or browse to an `.exe`.
-3. Use each row's **•••** menu to adjust timing, enable/disable, or move the application up/down.
-4. Choose **Launch workspace**, or start an individual application.
-5. **Stop workspace** requests a normal close only for processes verified as opened by this session. Applications that were already running remain open.
+## Why it exists
 
-The first run starts empty. Preview screenshots and UI tests use isolated example data; they do not create your workspaces.
+The aim is not simply to replace a shortcut or batch file. The application is designed to prepare a working environment while reducing startup contention and avoiding unnecessary impact on machine responsiveness.
 
-## Included
+A typical flow is:
 
-- Multiple workspaces; create, rename, duplicate, delete, and persist locally.
-- Desktop app discovery through App Paths and Start Menu shortcuts, Store app discovery through package manifests, and manual `.exe` selection.
-- Smart, timed, hybrid (default), and immediate launch modes; per-application delay, maximum wait, retries, and enable/disable.
-- CPU, available-memory and disk pressure sampling during launches, with bounded waits and critical-memory protection.
-- Already-running detection, external launch/closure detection, abnormal exit reporting, retry/skip, and pause/continue failure policies.
-- Graceful workspace stop; individual process selection with a separately confirmed force-end option.
-- SQLite persistence with schema versioning, parameter binding, transactions, and validation.
-- No accounts, cloud features, telemetry, automatic updates, or app launch arguments.
+```text
+Start workspace
+    ↓
+Launch first application
+    ↓
+Wait for minimum delay / machine readiness
+    ↓
+Check CPU, memory and disk pressure
+    ↓
+Launch next application
+    ↓
+Repeat until workspace is ready
+```
 
-## Timing and ownership
+## Current status
 
-The rule on an application controls the wait **before that application**, measured from the preceding successful launch. The first application has no predecessor delay, but smart/hybrid still respect pressure. Smart has a 750 ms settling floor after a previous launch. Hybrid defaults to 2 seconds; maximum wait defaults to 30 seconds. At the maximum wait the sequence continues with a visible warning, unless available memory is critical; critical memory causes a failure and follows the workspace failure policy.
+The current Windows build is functional and has been used interactively on the development machine.
 
-Ownership requires the exact executable path, PID, and process start time returned from the launch. The app never adopts arbitrary descendants or matching processes that merely appear later. If a launcher hands off to another process, running detection may succeed while ownership remains uncertain: workspace stop leaves that application open. Use its individual Stop control when appropriate. Save prompts and background applications can keep a process running after a graceful close request.
+Validated areas include:
 
-Ownership is in memory. Closing Orchestrator leaves applications open. On reopening, those processes count as pre-existing and are protected. Repeated launches during the same Orchestrator run preserve verified ownership. Only one launch sequence runs at a time across all workspaces.
+- workspace persistence and sequencing,
+- application discovery and icon resolution,
+- Windows Start/Search registration,
+- standard desktop window behaviour,
+- individual and workspace Stop behaviour,
+- process ownership safeguards,
+- Windows startup registration,
+- system-tray lifecycle,
+- close-to-tray / exit-on-close preferences,
+- single-instance activation,
+- local preference persistence.
 
-## Local data
+Idle resource usage was also rechecked after an earlier test-harness measurement appeared high. A settled production-process sample measured approximately **0.26% of one CPU core** over ~60 seconds, with a working set around **126–127 MB** on the test machine. These figures are observations from one machine, not product-wide performance guarantees.
 
-Configuration: `%LOCALAPPDATA%\WorkplaceOrchestrator\workspaces.db` (SQLite WAL/SHM files may also be present). Contains only workspace names, selected application identities and rules. No unrelated process history is retained. The application refuses unsupported newer schemas or invalid configuration rather than silently resetting it.
+See:
+- [Release status](docs/RELEASE_STATUS.md)
+- [Known limitations](docs/KNOWN_ISSUES.md)
+- [V1.1 remediation record](docs/V1_1_REMEDIATION.md)
+- [Implementation decisions](docs/IMPLEMENTATION_DECISIONS.md)
 
-To reset, close Orchestrator and remove this configuration folder. Backups are the user's responsibility; import/export is outside V1.
+## Architecture
 
-## Optional installation
+The application is Windows-first and local-only.
 
-From this directory in PowerShell:
+| Area | Implementation |
+|---|---|
+| UI | WPF |
+| Runtime | .NET Framework 4.8 |
+| Persistence | SQLite via Windows `winsqlite3` |
+| Launch orchestration | C# sequencing engine |
+| Windows integration | Start Menu, App Paths, package metadata, tray/startup integration |
+| Process safety | executable identity + PID/start-time/session ownership checks |
+
+Primary source files:
+
+| File | Responsibility |
+|---|---|
+| `src/Domain.cs` | Workspace and application models |
+| `src/Store.cs` | Local persistence and schema migration |
+| `src/WindowsServices.cs` | Discovery, process monitoring and system resource sampling |
+| `src/Engine.cs` | Launch sequencing, retries, cancellation and safe stop |
+| `src/App.cs` | Application lifecycle and UI controller |
+| `src/MainWindow.xaml` | Main Windows interface |
+| `src/WindowsIntegration.cs` | Windows shell/startup integration |
+| `src/ProcessGroups.cs` | Process-group and ownership handling |
+| `src/ThemeManager.cs` | System/Light/Dark appearance |
+
+## Build and test
+
+The repository contains source and build/test scripts rather than committed generated binaries.
+
+```powershell
+.\build.ps1 -Test
+.\tests\run.ps1 -Native
+.\tests\ui.ps1
+```
+
+Generated build output, candidate packages, local databases, logs and verification artifacts are intentionally excluded from Git.
+
+## Installation
+
+The project includes per-user installation and uninstall scripts:
 
 ```powershell
 .\install.ps1
 ```
 
-This installs for the current user under `%LOCALAPPDATA%\Programs\WorkplaceOrchestrator`, adds a Start Menu shortcut, and registers an uninstall entry. No elevation is required. Run the installed `uninstall.ps1` or use Windows Installed Apps to remove the app; configuration is preserved by default. Running the installed script with `-RemoveData` also deletes the local configuration. There is no updater or background service.
+The installer registers Workplace Orchestrator with Windows Start/Search and Installed Apps without requiring the application itself to run permanently elevated.
 
-The binary is unsigned. Code signing is deferred by the supplied product backlog.
+The executable is currently unsigned.
 
-## Build and verify
+## Local data and privacy
 
-The build uses the C# compiler included with Windows .NET Framework, native WPF and Windows SQLite. There are no third-party runtime or NuGet dependencies.
+Workspace configuration is stored locally under:
 
-```powershell
-.\build.ps1 -Test       # Compile and run deterministic core tests
-.\tests\run.ps1 -Native # Real process/resource/discovery integration checks
-.\tests\ui.ps1         # UI workflow and idle measurement, isolated data folder
+```text
+%LOCALAPPDATA%\WorkplaceOrchestrator
 ```
 
-The native test opens/closes a purpose-built test application. The UI test opens an isolated Orchestrator window and exercises dialogs without launching your applications. Results are saved under `tests\output`. Build output is in `dist`.
+The application has:
 
-## Source map
+- no user account,
+- no cloud storage,
+- no telemetry,
+- no advertising,
+- no automatic updater.
 
-| File | Responsibility |
-|---|---|
-| `src/Domain.cs` | Workspace/app models, executable validation, pressure classification |
-| `src/Store.cs` | Windows SQLite persistence and schema |
-| `src/WindowsServices.cs` | Discovery, process identities, activation, monitoring, resource sampling |
-| `src/Engine.cs` | Serialized sequencing, sessions, cancellation, retry, safe stop |
-| `src/App.cs` | WPF UI controller and dialogs |
-| `src/MainWindow.xaml` | Main window and control styles |
+## Product documentation
 
-The original 13 supplied documents are preserved in `docs/source`. See [implementation decisions](docs/IMPLEMENTATION_DECISIONS.md), [verification and release status](docs/RELEASE_STATUS.md), and [known limitations](docs/KNOWN_ISSUES.md).
+The repository includes the product and engineering documentation used during development. The original product specification set is retained under `docs/source/`, while the top-level documents in `docs/` capture implementation decisions, release evidence, known limitations and the V1.1 remediation cycle.
+
+## Development approach
+
+This project was built iteratively through AI-assisted product design and software development: defining the product requirements, implementing the application, testing real Windows behaviour, identifying deployment defects, and remediating them through targeted engineering iterations.
+
+The intent of this repository is to show the complete product-building process rather than only the final source code.
