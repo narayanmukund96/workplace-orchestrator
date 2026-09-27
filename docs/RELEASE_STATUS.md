@@ -1,35 +1,41 @@
-# V1 build verification — 2026-09-25
+# Release status — V1.1
 
-Version: **1.0.0**. Status: **usable local V1 build; broader release validation remains open**.
+Status: **functional local Windows build; suitable for continued personal use and portfolio demonstration. Broader public-distribution validation remains open.**
 
 ## Verified
 
-| Area | Evidence | Result |
+| Area | Current evidence | Result |
 |---|---|---|
-| Build | Native x64 executable compiled using Windows .NET Framework compiler | Passed |
-| Core behavior | 27 deterministic tests in `tests/Tests.cs`: workspace persistence/order/duplicate/delete, transaction rollback, corrupt/newer/tampered database rejection, path validation, all four modes, pressure clearing/maximum wait/critical memory, retry, pause/skip/cancel, external launch/closure, abnormal exit, pre-existing and shared-app ownership, in-flight cancellation | 27 passed |
-| Real Windows integration | Real resource readings; launch/match/graceful close of purpose-built test app; process exit event; mismatched creation-time protection; installed-app discovery and Store identity validation | 3 passed |
-| UI workflow | Empty-state launch guard, create workspace, add through picker, configure timing, rename, duplicate, reload persisted results | 8 functional assertions passed |
-| UI idle check | 10-second idle sample after dialog workflow; provisional threshold below 2% of one core | Passed, 0.78%; 131.0 MiB working set |
-| UI startup sample | Time to loaded UI inside test harness | 852 ms; warm-machine sample |
-| Visual verification | Rendered actual WPF content to `tests/output/interface.png` and visually inspected | Passed at 1220 × 820 |
-| Optional installation | Installed into isolated workspace folder, then removed only known product files | Passed with shell integration disabled |
-| Privacy/privilege | Source inspection: no network client or telemetry, no credential storage, `asInvoker` manifest, runtime-only process ownership | Implemented |
-| Source preservation | 13 original Markdown files copied to `docs/source`; original Downloads files untouched | Preserved |
+| Build | Current source builds successfully | Passed |
+| Core automated suite | 36 tests after the V1.1 source changes | 36 passed / 0 failed |
+| Native integration suite | Resource sampling, process identity, graceful closure, application discovery and multiprocess termination | 4 passed / 0 failed |
+| Application discovery | 139 applications discovered in the recorded native test, including 57 Store applications | Passed |
+| Individual Stop | Ownership-aware graceful close with bounded fallback and multiprocess coverage | Passed |
+| Stop Workspace | Session ownership protection and safe process handling | Passed |
+| Windows Start/Search | Start Menu shortcut, AppUserModelID, shell registration and Get-StartApps/Search catalogue validation | Passed after V1.1 fix |
+| Window behaviour | Native minimise/maximise/restore/resize/taskbar/icon checks | Passed; normal interactive use also confirmed |
+| Windows startup | Default-off preference; enable/disable registration | Passed |
+| System tray | Tray icon, Open, Exit, close-to-tray and duplicate-icon checks | Passed |
+| Single-instance activation | Second launch activates existing process/window | Passed |
+| Preference persistence | Close behaviour persisted across restart | Passed |
+| Idle CPU | Settled installed production process measured for ~60 seconds | ~0.258% of one CPU core |
+| Idle memory | Same settled production sample | ~126.9 MB average working set |
+| Local data preservation | Existing workspace database preserved through remediation | Passed |
 
-Final discovery found **139 applications, including 57 Store applications**. All 57 Store identities were verified against Windows package registration and executable paths, and a deliberately mismatched path was rejected. Shortcuts with launch arguments are omitted, because executing their targets without those arguments could launch the wrong application.
+The earlier UI-smoke CPU result of 18.72% of one core was not reproducible in the installed production process and is treated as a test-harness artefact rather than an application idle-performance result.
 
-## Remaining release gates
+## Remaining release boundaries
 
-- Interactive UAC accepted/denied flows and higher-privilege application behavior.
-- Real multi-heavy-application stress testing and agreed numerical CPU/memory budgets.
-- Broader Store activation/bootstrap/single-instance compatibility matrix.
-- Start Menu and Installed Apps integration in a disposable Windows profile.
-- Config cleanup with real per-user uninstall, small-screen/high-DPI and screen-reader testing.
+The following are not blockers for current personal use, but should be considered before treating the application as broadly production-distributable:
 
-No full production-readiness claim is made. The original release checklist remains unchanged in `source/09_RELEASE_CHECKLIST.md`; this file records actual evidence instead of checking unverified boxes.
+- executable code signing,
+- wider compatibility testing across more Store/bootstrap/single-instance application models,
+- interactive elevated/protected-application scenarios,
+- broader high-DPI/accessibility testing,
+- heavier real-world stress testing across different hardware,
+- a polished installer/updater strategy if the product is ever distributed beyond manual installation.
 
-## Reproduce
+## Reproduce core validation
 
 ```powershell
 .\build.ps1 -Test
@@ -37,4 +43,4 @@ No full production-readiness claim is made. The original release checklist remai
 .\tests\ui.ps1
 ```
 
-Native/UI checks open purpose-built or isolated test windows. They do not stop arbitrary user applications. Logs, temporary test databases and renders remain under `tests/output`.
+Generated test output remains local and is intentionally excluded from the public repository.
