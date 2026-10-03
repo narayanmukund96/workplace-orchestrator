@@ -237,7 +237,7 @@ static class Tests
             var p=new FakePlatform{Failures=1};var w=Work(App("one"));w.PauseOnFailure=true;var engine=new Engine(p);var run=engine.Launch(w);bool rejected=false;try{await engine.Launch(Work(App("two")));}catch(InvalidOperationException){rejected=true;}await engine.Cancel();await run;Assert(rejected,"serialized launches");
         });
     }
-    static async Task Native(string helper)
+    static async Task Native(string output,string helper)
     {
         await Test("Windows resource signals return bounded measurements",async()=>
         {
@@ -271,6 +271,28 @@ static class Tests
             foreach(var a in apps.Take(10).Concat(packaged.Take(5)))Assert(a.Icon!=null,"resolved application icon");
             Console.WriteLine("  Discovered="+apps.Count+"; Store="+packaged.Count+"; registered identities verified="+packaged.Count+"; elapsed="+watch.ElapsedMilliseconds+"ms");
         }));
+        await Test("Packaged application refresh replaces and persists a stale versioned path",async()=>
+        {
+            var packaged=Discovery.Scan().Where(a=>!String.IsNullOrEmpty(a.Aumid)).ToList();
+            var selected=packaged.FirstOrDefault(a=>a.Name.IndexOf("Claude",StringComparison.OrdinalIgnoreCase)>=0)??packaged.FirstOrDefault();
+            Assert(selected!=null,"a packaged application is required");
+            string packageRoot=Path.GetDirectoryName(selected.Path);
+            while(packageRoot!=null&&!File.Exists(Path.Combine(packageRoot,"AppxManifest.xml")))packageRoot=Path.GetDirectoryName(packageRoot);
+            Assert(packageRoot!=null,"package root");
+            string relative=selected.Path.Substring(packageRoot.Length).TrimStart(Path.DirectorySeparatorChar);
+            string stale=Path.Combine(Path.GetDirectoryName(packageRoot),Path.GetFileName(packageRoot)+".stale",relative);
+            Assert(!File.Exists(stale),"simulated path is stale");
+            var app=new AppEntry{Name=selected.Name,Path=stale,Aumid=selected.Aumid,Source="packaged"};
+            using(var platform=new WindowsPlatform())
+            {
+                await platform.Find(app);
+                Assert(Rules.SamePath(app.Path,selected.Path)&&PackageIdentity.Matches(app.Aumid,app.Path),"refresh resolved current package executable");
+            }
+            string database=Path.Combine(output,"package-path-refresh.db");var workspace=Work(app);
+            using(var store=new Store(database))store.Save(new List<Workspace>{workspace});
+            using(var store=new Store(database))Assert(Rules.SamePath(store.Load().Single().Apps.Single().Path,selected.Path),"refreshed path persisted");
+            Console.WriteLine("  Packaged app="+selected.Name+"; stale path refreshed to="+selected.Path);
+        });
         await Test("Native multiprocess app stops root and orphaned background child",async()=>
         {
             using(var platform=new WindowsPlatform())
@@ -289,7 +311,7 @@ static class Tests
     public static int Main(string[] args)
     {
         string output=args[0];Directory.CreateDirectory(output);
-        if(args.Length>1)Native(args[1]).GetAwaiter().GetResult();else Suite(output).GetAwaiter().GetResult();
+        if(args.Length>1)Native(output,args[1]).GetAwaiter().GetResult();else Suite(output).GetAwaiter().GetResult();
         Console.WriteLine("RESULT "+passed+" passed; "+failed+" failed");return failed==0?0:1;
     }
 }

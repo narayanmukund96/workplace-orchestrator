@@ -188,7 +188,7 @@ namespace WorkplaceOrchestrator
         {
             if(selected!=null)
             {
-                foreach(var a in selected.Apps){LoadIcon(a);if(!demo&&!File.Exists(a.Path)){a.State=AppState.Failed;a.Detail="Application missing. Use Choose application again in the row menu.";}}
+                foreach(var a in selected.Apps){LoadIcon(a);if(!demo&&String.IsNullOrEmpty(a.Aumid)&&!File.Exists(a.Path)){a.State=AppState.Failed;a.Detail="Application missing. Use Choose application again in the row menu.";}}
                 Text("WorkspaceTitle",selected.Name);Text("WorkspaceSubtitle",selected.Summary+" · Your applications, ready in the right order.");
                 Text("ModeTitle",selected.DefaultMode+" launch, at your pace");
                 Text("ModeDescription",selected.DefaultMode==LaunchMode.Hybrid?"A little breathing room between apps. More when your machine needs it.":selected.DefaultMode==LaunchMode.Smart?"Adapts to processor, memory and disk pressure as applications open.":selected.DefaultMode==LaunchMode.Timed?"Follows your chosen intervals between applications.":"Opens apps in order, with no settling delay.");
@@ -220,14 +220,24 @@ namespace WorkplaceOrchestrator
         async Task Refresh()
         {
             if(refreshing||disposed||demo)return;refreshing=true;
-            try {await engine.Refresh(workspaces.ToArray());if(!disposed)monitor.Observe(engine.AllCurrent);}
+            var paths=PackagePaths();
+            try {await engine.Refresh(workspaces.ToArray());PersistPackagePaths(paths);if(!disposed)monitor.Observe(engine.AllCurrent);}
             catch(Exception ex){Text("Status","Status update unavailable: "+ex.Message);}
             finally{refreshing=false;}
         }
         async Task RunAction(Func<Task> action)
         {
-            try {await action();await Refresh();}
+            var paths=PackagePaths();
+            try {await action();PersistPackagePaths(paths);await Refresh();}
             catch(Exception ex){MessageBox.Show(Window,ex.Message,"Action needs attention",MessageBoxButton.OK,MessageBoxImage.Warning);}
+        }
+        Dictionary<string,string> PackagePaths(){return workspaces.SelectMany(w=>w.Apps).Where(a=>!String.IsNullOrEmpty(a.Aumid)).ToDictionary(a=>a.Id,a=>a.Path);}
+        void PersistPackagePaths(Dictionary<string,string> before)
+        {
+            var changed=workspaces.SelectMany(w=>w.Apps).Where(a=>before.ContainsKey(a.Id)&&!Rules.SamePath(before[a.Id],a.Path)).ToList();
+            if(changed.Count==0)return;
+            store.Save(workspaces);monitor.Configure(workspaces.SelectMany(w=>w.Apps));
+            foreach(var app in changed){app.Icon=null;LoadIcon(app);app.Changed();}
         }
         bool Save()
         {

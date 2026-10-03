@@ -76,6 +76,7 @@ namespace WorkplaceOrchestrator
         }
         public Task<List<ProcessIdentity>> Find(AppEntry app)
         {
+            if(!ResolvePackage(app))return Task.FromResult(new List<ProcessIdentity>());
             return Task.Run(()=>
             {
                 var result=new List<ProcessIdentity>();
@@ -88,6 +89,7 @@ namespace WorkplaceOrchestrator
         }
         public Task<ProcessIdentity> Launch(AppEntry app)
         {
+            if(!ResolvePackage(app))throw new InvalidOperationException("The Microsoft Store application is no longer installed for this user.");
             return Task.Run(()=>
             {
                 string validation=Rules.ValidatePath(app.Path,true);
@@ -132,7 +134,13 @@ namespace WorkplaceOrchestrator
         }
         public Task<List<ProcessIdentity>> ExpandOwned(List<ProcessIdentity> known){return Task.Run(()=>groups.Expand(known));}
         public Task<bool> HasVisibleWindows(List<ProcessIdentity> owned){return Task.Run(()=>ProcessGroups.HasVisibleWindows(owned));}
-        public bool Available(AppEntry app){return File.Exists(app.Path);}
+        public bool Available(AppEntry app){return ResolvePackage(app)&&File.Exists(app.Path);}
+        static bool ResolvePackage(AppEntry app)
+        {
+            if(String.IsNullOrEmpty(app.Aumid))return true;
+            string resolved;bool changed;
+            return PackageIdentity.RefreshPath(app,out resolved,out changed);
+        }
         public void Forget(List<ProcessIdentity> roots){groups.Forget(roots);}
         public async Task<bool> TerminateOwned(List<ProcessIdentity> roots,List<ProcessIdentity> owned)
         {
@@ -184,8 +192,16 @@ namespace WorkplaceOrchestrator
     {
         [DllImport("kernel32.dll",CharSet=CharSet.Unicode,ExactSpelling=true)] static extern int GetPackagesByPackageFamily(string family,ref uint count,IntPtr names,ref uint bufferLength,IntPtr buffer);
         [DllImport("kernel32.dll",CharSet=CharSet.Unicode,ExactSpelling=true)] static extern int GetPackagePathByFullName(string fullName,ref uint length,StringBuilder path);
-        public static bool Matches(string aumid,string executable)
+        public static bool RefreshPath(AppEntry app,out string executable,out bool changed)
         {
+            executable=null;changed=false;
+            if(app==null||String.IsNullOrEmpty(app.Aumid)||!TryResolve(app.Aumid,out executable))return false;
+            if(!Rules.SamePath(app.Path,executable)){app.Path=executable;changed=true;}
+            return true;
+        }
+        public static bool TryResolve(string aumid,out string executable)
+        {
+            executable=null;
             IntPtr names=IntPtr.Zero,buffer=IntPtr.Zero;
             try
             {
@@ -195,6 +211,7 @@ namespace WorkplaceOrchestrator
                 if((rc!=0&&rc!=122)||count==0||count>1024||length>1048576)return false;
                 names=Marshal.AllocHGlobal(checked((int)count*IntPtr.Size));buffer=Marshal.AllocHGlobal(checked((int)length*2));
                 if(GetPackagesByPackageFamily(parts[0],ref count,names,ref length,buffer)!=0)return false;
+                Version best=null;
                 for(int i=0;i<count;i++)
                 {
                     string fullName=Marshal.PtrToStringUni(Marshal.ReadIntPtr(names,i*IntPtr.Size));uint pathLength=0;
@@ -206,13 +223,23 @@ namespace WorkplaceOrchestrator
                     foreach(XmlNode node in document.GetElementsByTagName("Application"))
                     {
                         var id=node.Attributes["Id"];var exe=node.Attributes["Executable"];
-                        if(id!=null&&exe!=null&&id.Value==parts[1]&&Rules.SamePath(System.IO.Path.Combine(path.ToString(),exe.Value),executable))return true;
+                        if(id==null||exe==null||id.Value!=parts[1])continue;
+                        string root=System.IO.Path.GetFullPath(path.ToString()).TrimEnd(System.IO.Path.DirectorySeparatorChar)+System.IO.Path.DirectorySeparatorChar;
+                        string candidate=System.IO.Path.GetFullPath(System.IO.Path.Combine(root,exe.Value));
+                        if(!candidate.StartsWith(root,StringComparison.OrdinalIgnoreCase)||Rules.ValidatePath(candidate,true)!=null)continue;
+                        var fields=fullName.Split('_');Version version=null;
+                        if(fields.Length>=5)Version.TryParse(fields[fields.Length-4],out version);
+                        if(executable==null||version!=null&&(best==null||version>best)){executable=candidate;best=version;}
                     }
                 }
             }
             catch {return false;}
             finally{if(names!=IntPtr.Zero)Marshal.FreeHGlobal(names);if(buffer!=IntPtr.Zero)Marshal.FreeHGlobal(buffer);}
-            return false;
+            return executable!=null;
+        }
+        public static bool Matches(string aumid,string executable)
+        {
+            string resolved;return TryResolve(aumid,out resolved)&&Rules.SamePath(resolved,executable);
         }
     }
     public sealed class ProcessMonitor : IDisposable
