@@ -6,7 +6,7 @@ The product started from a simple problem: when several heavy desktop applicatio
 
 ## Download
 
-**[Download Workplace Orchestrator v1.1.0](https://github.com/narayanmukund96/workplace-orchestrator/releases/download/v1.1.0/WorkplaceOrchestrator-v1.1.0.zip)**
+**[Download Workplace Orchestrator v1.1.1](https://github.com/narayanmukund96/workplace-orchestrator/releases/download/v1.1.1/WorkplaceOrchestrator-v1.1.1.zip)**
 
 Windows 10/11 · .NET Framework 4.8
 
