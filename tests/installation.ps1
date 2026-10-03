@@ -9,7 +9,7 @@ $before=@{};if(Test-Path -LiteralPath $data){Get-ChildItem -LiteralPath $data -F
 & (Join-Path $root 'install.ps1')
 $exe=Join-Path $destination 'WorkplaceOrchestrator.exe'
 $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
-Check ($version.ProductName -eq 'Workplace Orchestrator' -and $version.FileVersion -eq '1.1.0.0') 'Production product name and version metadata'
+Check ($version.ProductName -eq 'Workplace Orchestrator' -and $version.FileVersion -eq '1.1.1.0') 'Production product name and version metadata'
 $shell=New-Object -ComObject WScript.Shell
 $link=Join-Path ([Environment]::GetFolderPath('Programs')) 'Workplace Orchestrator.lnk'
 try{$shortcut=$shell.CreateShortcut($link);Check ($shortcut.TargetPath -eq $exe) 'Start Menu shortcut targets installed production executable';Check ($shortcut.IconLocation -eq ($exe+',0')) 'Start Menu shortcut uses production icon';[Runtime.InteropServices.Marshal]::ReleaseComObject($shortcut)|Out-Null}finally{[Runtime.InteropServices.Marshal]::ReleaseComObject($shell)|Out-Null}
@@ -20,7 +20,7 @@ $apps=''
 for($attempt=0;$attempt -lt 6;$attempt++){$apps=& $powershell -NoProfile -NonInteractive -Command "Get-StartApps -Name 'Workplace Orchestrator' | ConvertTo-Json -Compress";if($apps -match 'Workplace.Orchestrator'){break};Start-Sleep -Seconds 2}
 Check ([bool]($apps -match 'Workplace.Orchestrator')) 'Windows Start/Search application catalogue contains Workplace Orchestrator'
 $registration=Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkplaceOrchestrator'
-Check ($registration.DisplayName -eq 'Workplace Orchestrator' -and $registration.DisplayVersion -eq '1.1.0') 'Windows Installed Apps uninstall registration'
+Check ($registration.DisplayName -eq 'Workplace Orchestrator' -and $registration.DisplayVersion -eq '1.1.1') 'Windows Installed Apps uninstall registration'
 Check (@(Get-ChildItem -LiteralPath $destination -Filter '*.exe').Count -eq 1) 'Installed folder contains only the production executable'
 if(-not $LeaveInstalled){& (Join-Path $destination 'uninstall.ps1');Check (-not(Test-Path -LiteralPath $link) -and -not(Test-Path -LiteralPath $exe)) 'Uninstall removes product executable and Start Menu shortcut';Check (-not(Test-Path -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkplaceOrchestrator')) 'Uninstall removes Installed Apps registration'}
 foreach($name in $before.Keys){Check ((Get-FileHash -LiteralPath (Join-Path $data $name)).Hash -eq $before[$name]) ('User configuration preserved: '+$name)}

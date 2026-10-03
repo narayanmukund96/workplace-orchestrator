@@ -19,9 +19,9 @@ using Microsoft.Win32;
 [assembly: AssemblyProduct("Workplace Orchestrator")]
 [assembly: AssemblyDescription("Local application workspaces for Windows")]
 [assembly: AssemblyCompany("Workplace Orchestrator")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
-[assembly: AssemblyInformationalVersion("1.1.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyInformationalVersion("1.1.1")]
 
 namespace WorkplaceOrchestrator
 {

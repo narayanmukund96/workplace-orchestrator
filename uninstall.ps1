@@ -2,7 +2,7 @@ param([switch]$RemoveData)
 $ErrorActionPreference = 'Stop'
 $installation = [IO.Path]::GetFullPath($PSScriptRoot)
 $marker = Join-Path $installation '.workplace-orchestrator-install'
-if (-not (Test-Path -LiteralPath $marker) -or (Get-Content -LiteralPath $marker -Raw).Trim() -notin @('WorkplaceOrchestrator 1.0.0','WorkplaceOrchestrator 1.1.0')) { throw 'This script must run from a marked Workplace Orchestrator installation.' }
+if (-not (Test-Path -LiteralPath $marker) -or (Get-Content -LiteralPath $marker -Raw).Trim() -notin @('WorkplaceOrchestrator 1.0.0','WorkplaceOrchestrator 1.1.0','WorkplaceOrchestrator 1.1.1')) { throw 'This script must run from a marked Workplace Orchestrator installation.' }
 $exe = Join-Path $installation 'WorkplaceOrchestrator.exe'
 $running = Get-Process -Name 'WorkplaceOrchestrator' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe }
 if ($running) { throw 'Close Workplace Orchestrator before uninstalling. Your applications can remain open.' }
